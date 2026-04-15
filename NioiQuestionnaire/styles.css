@@ -333,6 +333,7 @@ h3 {
 .field-stack {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .field-label {
@@ -351,8 +352,12 @@ h3 {
 .select-input,
 .number-input,
 .text-area {
+  display: block;
   min-width: 0;
+  min-inline-size: 0;
+  max-width: 100%;
   width: 100%;
+  min-height: 54px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 14px 16px;
@@ -375,6 +380,25 @@ h3 {
 
 .select-input {
   appearance: none;
+}
+
+.text-input[type="date"] {
+  appearance: none;
+  -webkit-appearance: none;
+  line-height: 1.25;
+}
+
+.text-input[type="date"]::-webkit-date-and-time-value {
+  min-height: 1.25em;
+  text-align: left;
+}
+
+.text-input[type="date"]::-webkit-calendar-picker-indicator {
+  margin: 0;
+}
+
+.text-area {
+  min-height: 0;
 }
 
 .instrument-grid {
@@ -772,6 +796,18 @@ h3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .choice-button {
+    min-height: 52px;
+    padding: 9px 6px;
+    font-size: 0.8rem;
+  }
+
+  .choice-value {
+    font-size: 0.74rem;
+  }
+}
+
+@media (max-width: 700px) {
   .choice-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
