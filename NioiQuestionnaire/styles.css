@@ -319,7 +319,11 @@ h3 {
 }
 
 .screen-subgrid {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.screen-subgrid > * {
+  min-width: 0;
 }
 
 .field-span-full {
@@ -347,6 +351,7 @@ h3 {
 .select-input,
 .number-input,
 .text-area {
+  min-width: 0;
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -777,6 +782,10 @@ h3 {
   .choice-grid,
   .summary-grid,
   .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .screen-subgrid {
     grid-template-columns: 1fr;
   }
 
