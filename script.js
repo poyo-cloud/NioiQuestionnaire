@@ -312,9 +312,11 @@ function createInitialState() {
     sessionId: createSessionId(),
     currentScreenIndex: 0,
     participantId: "",
+    participantName: "",
     sessionDate: todayInputValue(),
     sex: "",
     age: "",
+    educationYears: "",
     medicalHistory: "",
     pollenAllergy: "なし",
     olfactoryDisease: "なし",
@@ -489,6 +491,18 @@ function renderIntroScreen() {
         </label>
 
         <label class="field-stack">
+          <span class="field-label">名前</span>
+          <input
+            class="text-input"
+            type="text"
+            maxlength="80"
+            data-field="participantName"
+            placeholder="必須"
+            value="${escapeAttribute(state.participantName)}"
+          />
+        </label>
+
+        <label class="field-stack">
           <span class="field-label">検査実施日</span>
           <input
             class="text-input"
@@ -518,6 +532,19 @@ function renderIntroScreen() {
             ${renderSelectOption("男", "男", state.sex)}
             ${renderSelectOption("女", "女", state.sex)}
           </select>
+        </label>
+
+        <label class="field-stack">
+          <span class="field-label">教育歴（年単位）</span>
+          <input
+            class="number-input"
+            type="number"
+            min="0"
+            max="40"
+            data-field="educationYears"
+            placeholder="必須"
+            value="${escapeAttribute(state.educationYears)}"
+          />
         </label>
 
         <label class="field-stack field-span-full">
@@ -642,7 +669,7 @@ function renderHistory() {
   if (!historyEntries.length) {
     refs.historyList.innerHTML = `
       <div class="empty-state history-empty">
-        まだ保存済みセッションはありません。今回の患者さんを最後まで入力すると、ここからまとめて Excel 出力できます。
+        まだ保存済みセッションはありません。今回の患者さんを最後まで入力すると、ここからまとめて CSV 出力できます。
       </div>
     `;
     return;
@@ -662,7 +689,7 @@ function renderHistory() {
             </div>
             <div class="history-actions">
               <button class="button-secondary" type="button" data-action="history-export" data-record-id="${escapeAttribute(entry.id)}">
-                この回をExcel出力
+                この回をCSV出力
               </button>
               <button class="button-ghost danger" type="button" data-action="history-delete" data-record-id="${escapeAttribute(entry.id)}">
                 削除
@@ -853,8 +880,10 @@ function isCurrentScreenComplete() {
 function isIntroComplete() {
   return Boolean(
     state.participantId.trim() &&
+      state.participantName.trim() &&
       state.sessionDate &&
       `${state.age}` !== "" &&
+      `${state.educationYears}` !== "" &&
       state.sex &&
       state.pollenAllergy &&
       state.olfactoryDisease,
@@ -1001,9 +1030,11 @@ function buildRecord() {
     id: state.savedRecordId || state.sessionId,
     savedAt: new Date().toISOString(),
     participantId: state.participantId.trim(),
+    participantName: state.participantName.trim(),
     sessionDate: state.sessionDate,
     sex: state.sex,
     age: state.age,
+    educationYears: state.educationYears,
     medicalHistory: state.medicalHistory.trim(),
     pollenAllergy: state.pollenAllergy,
     olfactoryDisease: state.olfactoryDisease,
@@ -1044,26 +1075,21 @@ function buildCsv(records) {
 
 function buildExportColumns() {
   return [
-    "patient_id",
-    "session_date",
-    "age",
-    "sex",
-    "medical_history",
-    "pollen_allergy",
-    "olfactory_disorder_disease",
-    "saved_at",
-    "stai_state_total",
-    "stai_trait_total",
-    "neo_n_total",
-    "neo_e_total",
-    "neo_o_total",
-    "neo_a_total",
-    "neo_c_total",
-    "cdrisc_total",
-    ...QUESTIONNAIRES.staiState.items.map((item) => `${QUESTIONNAIRES.staiState.title}_${item.id}`),
-    ...QUESTIONNAIRES.staiTrait.items.map((item) => `${QUESTIONNAIRES.staiTrait.title}_${item.id}`),
-    ...QUESTIONNAIRES.neo.items.map((item) => `${QUESTIONNAIRES.neo.title}_${item.id}`),
-    ...QUESTIONNAIRES.cdrisc.items.map((item) => `${QUESTIONNAIRES.cdrisc.title}_${item.id}`),
+    "SubjectNo",
+    "Name",
+    "Pattern",
+    "Age",
+    "Sex(M/F)",
+    "Year of education",
+    "StateAnx",
+    "TraitAnx",
+    "CDR",
+    "NEO-FFI_N",
+    "NEO-FFI_E",
+    "NEO-FFI_O",
+    "NEO-FFI_A",
+    "NEO-FFI_C",
+    ...buildSummaryVasHeaders(),
   ];
 }
 
@@ -1072,26 +1098,55 @@ function buildExportRow(record) {
 
   return [
     record.participantId,
-    record.sessionDate,
+    record.participantName,
+    "",
     record.age,
-    record.sex,
-    record.medicalHistory,
-    record.pollenAllergy,
-    record.olfactoryDisease,
-    record.savedAt,
+    formatSummarySex(record.sex),
+    record.educationYears,
     scores.staiState,
     scores.staiTrait,
+    scores.cdrisc,
     scores.neo.N,
     scores.neo.E,
     scores.neo.O,
     scores.neo.A,
     scores.neo.C,
-    scores.cdrisc,
-    ...QUESTIONNAIRES.staiState.items.map((item) => record.answers.staiState[item.id] ?? ""),
-    ...QUESTIONNAIRES.staiTrait.items.map((item) => record.answers.staiTrait[item.id] ?? ""),
-    ...QUESTIONNAIRES.neo.items.map((item) => record.answers.neo[item.id] ?? ""),
-    ...QUESTIONNAIRES.cdrisc.items.map((item) => record.answers.cdrisc[item.id] ?? ""),
+    ...buildEmptySummaryVasValues(),
   ];
+}
+
+function buildSummaryVasHeaders() {
+  return [
+    "B_Olf_threshold",
+    "B_Olf_favo",
+    "B_comfort",
+    "B_tiredness",
+    "B_concentrate",
+    ...Array.from({ length: 7 }, (_item, index) => {
+      const prefix = `C${index + 1}`;
+      return [
+        `${prefix}_Olf_threshold`,
+        `${prefix}_Olf_favo`,
+        `${prefix}_comfort`,
+        `${prefix}_tiredness`,
+        `${prefix}_concentrate`,
+      ];
+    }).flat(),
+  ];
+}
+
+function buildEmptySummaryVasValues() {
+  return Array.from({ length: buildSummaryVasHeaders().length }, () => "");
+}
+
+function formatSummarySex(value) {
+  if (value === "男") {
+    return "M";
+  }
+  if (value === "女") {
+    return "F";
+  }
+  return value || "";
 }
 
 function csvEscape(value) {
