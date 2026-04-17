@@ -1,5 +1,39 @@
-# NioiQuestionnaire
+# 匂い研究 質問票アプリ
 
-匂い研究用の質問票アプリです。
+STAI、NEO-FFI、CD-RISC を iPad で実施し、回答を端末内へ保存して `.csv` ファイルとして出力する静的 Web アプリです。VAS は別フォルダの専用アプリへ分離しています。
 
-- `NioiQuestionnaire/`: STAI、NEO-FFI、CD-RISC を実施する iPad 向け静的 Web アプリ
+## できること
+
+- `STAI-state` 20 問を 1 ページで入力
+- `STAI-trait` 20 問を 1 ページで入力
+- `NEO-FFI` 60 項目を 30 問ずつ 2 ページで入力
+- `CD-RISC` 25 項目を 1 ページで入力
+- 患者情報として `患者ID` `名前` `検査実施日` `年齢` `性別` `教育歴（年単位）` `既往歴` `花粉症` `脳梗塞、脳腫瘍などの嗅覚障害を呈する疾患` を入力
+- 回答終了時に確認ダイアログを表示し、確定後は履歴へ保存して開始画面へ戻る
+- 単回または履歴まとめての `.csv` 出力
+
+## 使い方
+
+1. `index.html` を Safari で開く
+2. 患者情報を入力
+3. `質問票を開始` を押す
+4. STAI → NEO-FFI → CD-RISC の順に回答
+5. 未回答がある状態で `次へ進む` を押すと、未回答の設問番号を表示
+6. CD-RISC の最後で `回答を確定しますか？` に `はい` を選ぶと保存して開始画面へ戻る
+7. 保存済みの結果は画面上部の `保存済み履歴をCSV出力` から出力
+
+## CSV 出力
+
+- `Data_summary.xlsx` の `Subjective Score` シート 2 行目の列順に合わせて出力します
+- 質問票アプリでは `SubjectNo` `Name` `Pattern` `Age` `Sex(M/F)` `Year of education` に続いて、性格検査スコアを入れます
+- VAS 用の列 `B_Olf_threshold` 〜 `C7_concentrate` は空欄のまま出力します
+
+## 採点設定
+
+採点ロジックは [script.js](/Users/takuya/Documents/Codex/NioiQuestionnaire/script.js) の先頭付近にまとめています。
+
+- STAI: 反転項目を反映して合計点を計算
+- NEO-FFI: 5 因子ごとの合計点を計算
+- CD-RISC: 合計点を計算
+
+研究室で使っている手採点表と差し替えたい場合は、`QUESTIONNAIRES` 定義の `reverseItems` / `factors` を更新してください.
