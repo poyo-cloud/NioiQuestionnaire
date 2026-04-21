@@ -794,7 +794,7 @@ function handleHistoryClick(event) {
     if (record) {
       exportRecordsAsExcel(
         [record],
-        `nioi-questionnaire-${sanitizeFileName(record.participantId || record.id)}`,
+        `Q_${sanitizeFileName(record.participantId || record.id)}.csv`,
       );
     }
     return;
@@ -1049,13 +1049,16 @@ function exportAllHistory() {
     return;
   }
 
-  exportRecordsAsExcel(historyEntries, "nioi-questionnaire-history");
+  exportRecordsAsExcel(
+    historyEntries,
+    `Q_history-${timestampFilePart(new Date().toISOString())}.csv`,
+  );
 }
 
-function exportRecordsAsExcel(records, filenameStem) {
+function exportRecordsAsExcel(records, filename) {
   const content = `\uFEFF${buildCsv(records)}`;
   downloadTextFile(
-    `${filenameStem}-${timestampFilePart(new Date().toISOString())}.csv`,
+    filename,
     content,
     "text/csv;charset=utf-8",
   );
