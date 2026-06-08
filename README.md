@@ -24,16 +24,18 @@ STAI、NEO-FFI、CD-RISC を iPad で実施し、回答を端末内へ保存し�
 
 ## CSV 出力
 
-- `Data_summary.xlsx` の `Subjective Score` シート 2 行目の列順に合わせて出力します
-- 質問票アプリでは `SubjectNo` `Name` `Pattern` `Age` `Sex(M/F)` `Year of education` に続いて、性格検査スコアを入れます
-- VAS 用の列 `B_Olf_threshold` 〜 `C7_concentrate` は空欄のまま出力します
+- 1 人の回答を 1 行で出力します
+- 先頭列は `Data_summary3.xlsx` の `Subjective Score` シートに合わせて、`SubjectNo` から `NEO-FFI_C`、その右の主観評価列まで同じ順番で並べます
+- 質問票アプリでは `Pattern` と主観評価列は空欄のまま出力します
+- `MedicalHistory`、`PollenAllergy`、`OlfactoryDisease` は集計用列にそのまま入ります
+- さらに右側へ `SavedAt` `SessionDate` と、`STAI-state_1`、`STAI-trait_21`、`NEO-FFI_1`、`CD-RISC_1` のような生データ列を続けて保存します
 
 ## 採点設定
 
-採点ロジックは [script.js](/Users/takuya/Documents/Codex/NioiQuestionnaire/script.js) の先頭付近にまとめています。
+採点ロジックは [script.js](/Users/takuya/Documents/Codex/整理済みCode/生理学/匂い実験/NioiQuestionnaire/script.js) の先頭付近にまとめています。
 
 - STAI: 反転項目を反映して合計点を計算
 - NEO-FFI: 5 因子ごとの合計点を計算
 - CD-RISC: 合計点を計算
 
-研究室で使っている手採点表と差し替えたい場合は、`QUESTIONNAIRES` 定義の `reverseItems` / `factors` を更新してください.
+研究室で使っている手採点表と差し替えたい場合は、`QUESTIONNAIRES` 定義の `reverseItems` / `factors` を更新してください。

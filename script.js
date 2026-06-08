@@ -420,7 +420,11 @@ function renderStatus() {
   refs.statusSummary.innerHTML = [
     renderSummaryCard("患者ID", state.participantId || "未入力"),
     renderSummaryCard("現在", currentStage ? currentStage.title : "未開始"),
-    renderSummaryCard("回答済み", `${countAnsweredItems()} / ${getTotalQuestionCount()}`),
+    renderSummaryCard(
+      "回答済み",
+      `${countAnsweredItems()} / ${getTotalQuestionCount()}`,
+      "answered-total",
+    ),
     renderSummaryCard("検査実施日", formatDateValue(state.sessionDate)),
     renderSummaryCard("保存履歴", `${historyEntries.length} 件`),
   ].join("");
@@ -441,11 +445,15 @@ function renderStatus() {
   }).join("");
 }
 
-function renderSummaryCard(label, value) {
+function renderSummaryCard(label, value, valueRole = "") {
+  const roleAttribute = valueRole
+    ? ` data-role="${escapeAttribute(valueRole)}"`
+    : "";
+
   return `
     <div class="summary-card">
       <div class="summary-card-label">${escapeHtml(label)}</div>
-      <div class="summary-card-value">${escapeHtml(value)}</div>
+      <div class="summary-card-value"${roleAttribute}>${escapeHtml(value)}</div>
     </div>
   `;
 }
@@ -653,6 +661,7 @@ function renderChoiceCard(questionnaire, item) {
                 data-questionnaire="${escapeAttribute(questionnaire.id)}"
                 data-item-id="${escapeAttribute(String(item.id))}"
                 data-value="${escapeAttribute(String(option.value))}"
+                aria-pressed="${isSelected ? "true" : "false"}"
               >
                 <span class="choice-value">${escapeHtml(String(option.value))}</span>
                 ${escapeHtml(option.label)}
@@ -728,12 +737,17 @@ function handleViewClick(event) {
   const action = button.dataset.action;
 
   if (action === "answer") {
+    const questionnaireId = button.dataset.questionnaire;
+    const itemId = button.dataset.itemId;
+    const value = Number(button.dataset.value);
+
     storeAnswer(
-      button.dataset.questionnaire,
-      button.dataset.itemId,
-      Number(button.dataset.value),
+      questionnaireId,
+      itemId,
+      value,
     );
-    render();
+    syncChoiceSelection(questionnaireId, itemId, value);
+    syncAnsweredSummary();
     return;
   }
 
@@ -909,6 +923,27 @@ function storeAnswer(questionnaireId, itemId, value) {
   persistDraft();
 }
 
+function syncChoiceSelection(questionnaireId, itemId, value) {
+  const choiceButtons = refs.viewPanel.querySelectorAll(
+    `[data-action="answer"][data-questionnaire="${cssEscape(questionnaireId)}"][data-item-id="${cssEscape(itemId)}"]`,
+  );
+
+  choiceButtons.forEach((button) => {
+    const isSelected = Number(button.dataset.value) === value;
+    button.classList.toggle("selected", isSelected);
+    button.setAttribute("aria-pressed", isSelected ? "true" : "false");
+  });
+}
+
+function syncAnsweredSummary() {
+  const answeredTotalNode = refs.statusSummary.querySelector('[data-role="answered-total"]');
+  if (!answeredTotalNode) {
+    return;
+  }
+
+  answeredTotalNode.textContent = `${countAnsweredItems()} / ${getTotalQuestionCount()}`;
+}
+
 function getStoredAnswer(questionnaireId, itemId) {
   const value = state.answers[questionnaireId]?.[itemId];
   return value == null ? null : Number(value);
@@ -1078,21 +1113,9 @@ function buildCsv(records) {
 
 function buildExportColumns() {
   return [
-    "SubjectNo",
-    "Name",
-    "Pattern",
-    "Age",
-    "Sex(M/F)",
-    "Year of education",
-    "StateAnx",
-    "TraitAnx",
-    "CDR",
-    "NEO-FFI_N",
-    "NEO-FFI_E",
-    "NEO-FFI_O",
-    "NEO-FFI_A",
-    "NEO-FFI_C",
-    ...buildSummaryVasHeaders(),
+    ...buildSummaryExportColumns(),
+    ...buildRawMetadataColumns(),
+    ...buildRawAnswerHeaders(),
   ];
 }
 
@@ -1106,6 +1129,9 @@ function buildExportRow(record) {
     record.age,
     formatSummarySex(record.sex),
     record.educationYears,
+    record.medicalHistory,
+    record.pollenAllergy,
+    record.olfactoryDisease,
     scores.staiState,
     scores.staiTrait,
     scores.cdrisc,
@@ -1114,32 +1140,121 @@ function buildExportRow(record) {
     scores.neo.O,
     scores.neo.A,
     scores.neo.C,
-    ...buildEmptySummaryVasValues(),
+    ...buildEmptySummarySubjectiveValues(),
+    ...buildRawMetadataValues(record),
+    ...buildRawAnswerValues(record),
   ];
 }
 
-function buildSummaryVasHeaders() {
+function buildSummaryExportColumns() {
   return [
-    "B_Olf_threshold",
-    "B_Olf_favo",
-    "B_comfort",
-    "B_tiredness",
-    "B_concentrate",
-    ...Array.from({ length: 7 }, (_item, index) => {
-      const prefix = `C${index + 1}`;
-      return [
-        `${prefix}_Olf_threshold`,
-        `${prefix}_Olf_favo`,
-        `${prefix}_comfort`,
-        `${prefix}_tiredness`,
-        `${prefix}_concentrate`,
-      ];
-    }).flat(),
+    "SubjectNo",
+    "Name",
+    "Pattern",
+    "Age",
+    "Sex(M/F)",
+    "Year of education",
+    "MedicalHistory",
+    "PollenAllergy",
+    "OlfactoryDisease",
+    "StateAnx",
+    "TraitAnx",
+    "CDR",
+    "NEO-FFI_N",
+    "NEO-FFI_E",
+    "NEO-FFI_O",
+    "NEO-FFI_A",
+    "NEO-FFI_C",
+    ...buildSummarySubjectiveHeaders(),
   ];
 }
 
-function buildEmptySummaryVasValues() {
-  return Array.from({ length: buildSummaryVasHeaders().length }, () => "");
+function buildSummarySubjectiveHeaders() {
+  return [
+    "threshold",
+    "favo",
+    "pungency",
+    "comfort",
+    "tiredness",
+    "concentrate",
+    "sleepiness",
+    "v_reactiontime",
+    "s_reactiontime",
+    "threshold",
+    "favo",
+    "pungency",
+    "comfort",
+    "tiredness",
+    "concentrate",
+    "sleepiness",
+    "v_reactiontime",
+    "s_reactiontime",
+    "threshold",
+    "favo",
+    "pungency",
+    "comfort",
+    "tiredness",
+    "concentrate",
+    "sleepiness",
+    "v_reactiontime",
+    "s_reactiontime",
+    "threshold",
+    "favo",
+    "pungency",
+    "comfort",
+    "tiredness",
+    "concentrate",
+    "sleepiness",
+    "v_reactiontime",
+    "s_reactiontime",
+  ];
+}
+
+function buildEmptySummarySubjectiveValues() {
+  return Array.from({ length: buildSummarySubjectiveHeaders().length }, () => "");
+}
+
+function buildRawMetadataColumns() {
+  return [
+    "SavedAt",
+    "SessionDate",
+  ];
+}
+
+function buildRawMetadataValues(record) {
+  return [
+    record.savedAt,
+    record.sessionDate,
+  ];
+}
+
+function buildRawAnswerHeaders() {
+  return [
+    ...buildQuestionnaireItemHeaders(QUESTIONNAIRES.staiState),
+    ...buildQuestionnaireItemHeaders(QUESTIONNAIRES.staiTrait),
+    ...buildQuestionnaireItemHeaders(QUESTIONNAIRES.neo),
+    ...buildQuestionnaireItemHeaders(QUESTIONNAIRES.cdrisc),
+  ];
+}
+
+function buildQuestionnaireItemHeaders(questionnaire) {
+  return questionnaire.items.map((item) => `${questionnaire.title}_${item.id}`);
+}
+
+function buildRawAnswerValues(record) {
+  return [
+    ...buildQuestionnaireItemValues(record, QUESTIONNAIRES.staiState),
+    ...buildQuestionnaireItemValues(record, QUESTIONNAIRES.staiTrait),
+    ...buildQuestionnaireItemValues(record, QUESTIONNAIRES.neo),
+    ...buildQuestionnaireItemValues(record, QUESTIONNAIRES.cdrisc),
+  ];
+}
+
+function buildQuestionnaireItemValues(record, questionnaire) {
+  return questionnaire.items.map((item) => {
+    const value = record.answers?.[questionnaire.id]?.[item.id];
+    return value == null ? "" : value;
+  });
 }
 
 function formatSummarySex(value) {
@@ -1298,4 +1413,12 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value);
+}
+
+function cssEscape(value) {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(String(value));
+  }
+
+  return String(value).replace(/["\\]/g, "\\$&");
 }
